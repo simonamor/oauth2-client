@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+ <html lang="en">
+<head>
+<meta charset="utf-8">
+<title>[% SET ptitle = page.title; DEFAULT ptitle = ''; ptitle | html %]</title>
+
+<!--==== device meta ====-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no" />
+</head>
+<body>
+
+<ul>
+<li><a href="/">Home</a></li>
+<li><a href="/status">Status</a></li>
+<li><a href="/protected">Protected page</a></li>
+<li><a href="/login">Login</a></li>
+<li><a href="/logout">Logout</a></li>
+</ul>
+
+<div id="status">Status: [% IF c.user_exists; "Logged in"; ELSE; "Not logged in"; END %]</div>
+
+<div id="main">
+[% content %]
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,6 @@
+Run script/oauth2client_server.pl to test the application.
+
+This is a test OAuth2 client using CatalystX::OAuth2.
+
+Some minor changes were made to CatalystX::OAuth2 as committed
+to https://github.com/simonamor/CatalystX-OAuth2

@@ -1,0 +1,6 @@
+name: OAuth2Client
+
+# Change this password on live!
+Model::DB:
+    connect_info:
+        password: oauth2_client_password
