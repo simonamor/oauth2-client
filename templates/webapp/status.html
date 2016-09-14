@@ -1,4 +1,7 @@
+Token: [% c.user.token %]<br>
+Response: [% response %]<br>
+Error: [% error %]<br>
 
 <pre>
-[% USE Dumper; Dumper.dump(c.user) %]
+[% USE Dumper; Dumper.dump(c.user); Dumper.dump(c.session); %]
 </pre>

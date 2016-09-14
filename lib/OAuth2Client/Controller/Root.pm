@@ -6,6 +6,8 @@ use URI;
 use Digest::SHA;
 use Time::HiRes;
 
+use Data::Dumper;
+
 BEGIN { extends 'Catalyst::Controller' }
 
 #
@@ -53,19 +55,26 @@ sub default :Path {
 sub login :Path('/login') :Args(0) {
     my ($self, $c) = @_;
 
-    use Data::Dumper;
-    if ($c->request->param('error')) {
+    if (exists $c->request->params->{ error }) {
         $c->stash( template => "error.html" );
         $c->stash( extra => $c->request->params );
         $c->detach();
     }
 
-    my $sha1 = Digest::SHA->new(512)->add(
-        $$, "Auth for login", Time::HiRes::time(), rand()*10000
-    )->hexdigest;
-    $sha1 = substr($sha1, 4, 16);
+    my $sha1 = undef;
+    if (exists $c->request->params->{ state }) {
+        $sha1 = $c->request->params->{ state };
 
-    unless ($c->request->param('state')) {
+        if ($sha1 ne $c->session->{ oauth_state }) {
+            $c->log->debug("state doesn't match $sha1 vs " . $c->session->{ oauth_state });
+        }
+
+    } else {
+        $sha1 = Digest::SHA->new(512)->add(
+            $$, "Auth for login", Time::HiRes::time(), rand()*10000
+        )->hexdigest;
+        $sha1 = substr($sha1, 4, 16);
+
         $c->session( oauth_state => $sha1 );
     }
 
@@ -74,39 +83,74 @@ sub login :Path('/login') :Args(0) {
         $scope{ scope } = $c->config->{'Plugin::Authentication'}{default}{credential}{scope};
     }
 
+    $c->log->debug("authenticate this: " . Dumper({ state => $sha1, %scope }));
+
     if ($c->authenticate({
             state => $sha1,
             %scope,
         })) {
         $c->log->debug("Authenticated!");
 
+        # Fetch information from the Auth Provider to get a unique id
+        # that we can use to link a local account to the account that
+        # was used at the Provider.
+
+        # FIXME: Get unique id
+
         # At this point, there would be a call using the oauth token to fetch
         # user data such as email address
         $c->response->redirect($c->uri_for("/status"));
-        $c->detach();
+        #$c->detach('/status');
+    } elsif (exists $c->req->params->{ code }) {
+        # If the code parameter isn't present, we've not yet redirected to the
+        # login server for authentication so a redirect is likely already present.
+        $c->log->debug("Not authenticated");
+        # Here we would need to redirect or something..
+
+        $c->response->redirect($c->uri_for("/login", { error_description => "Login failed", error => "access_denied", %{$c->req->params} }));
     }
-    $c->log->debug("Not authenticated");
 }
 
 sub status :Path('/status') :Args(0) {
     my ($self, $c) = @_;
 
+    # No OAuth2 attribute on the user (or logged in user)? Login first.
+    unless ($c->user_exists && $c->user->oauth2) {
+        $c->response->redirect($c->uri_for("/login"));
+        $c->detach();
+    }
+
+    # Fetch a 'protected' resource from the login server. Typically this
+    # would be something like user data, profile info, etc.
+    my $req = HTTP::Request->new( GET => 'https://login.ext2.bocks.com/api/profile');
+    my $res = $c->user->oauth2->request( $req );
+
+    if ($res->is_success) {
+        $c->stash( response => $res->content );
+    } else {
+        # If the token no longer works and we get a 401, log them out locally
+        # as well so they get asked to re-authenticate.
+        if ($res->code == 401) {
+            $c->logout();
+            $c->detach('/status');
+        }
+        $c->stash( error => $res->content );
+    }
     $c->stash( template => "status.html" );
 }
 
 sub logout :Path('/logout') :Args(0) {
     my ($self, $c) = @_;
 
+    if ($c->user_exists && $c->user->oauth2) {
+        my $res = $c->user->oauth2->request(
+            HTTP::Request->new( GET => 'https://login.ext2.bocks.com/api/revoke' )
+        );
+    }
+    # Not too concerned with the response, the token will die
+    # within the normal timeout anyway if there's an error.
     $c->logout();
     $c->response->redirect($c->uri_for("/"));
-}
-
-sub protected :Chained('/') :Args(0) Does('OAuth2::ProtectedResource') {
-    my ($self, $c) = @_;
-
-    $c->log->debug("Here at line " . __LINE__);
-
-    $c->stash( template => "protected.html" );
 }
 
 sub end : ActionClass('RenderView') { }

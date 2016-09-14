@@ -7,13 +7,13 @@
 <!--==== device meta ====-->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="format-detection" content="telephone=no" />
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
 <ul>
 <li><a href="/">Home</a></li>
-<li><a href="/status">Status</a></li>
-<li><a href="/protected">Protected page</a></li>
+<li><a href="/status">Status</a> (authenticated user only)</li>
 <li><a href="/login">Login</a></li>
 <li><a href="/logout">Logout</a></li>
 </ul>
