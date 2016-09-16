@@ -72,11 +72,19 @@ __PACKAGE__->config(
                 client_id => '12345',
                 client_secret => 'SomethingSecret',
             },
-
             store => {
-                class => 'Null'
-            }
-        }
+                # class           => 'OAuth2DBIC',
+                class           => 'DBIx::Class',
+                user_model      => 'DB::User',
+                store_user_class => 'OAuth2Client::Store::OAuth2DBIC::User',
+                # role_relation   => 'roles',
+                # role_field      => 'role',
+                use_userdata_from_session => '0',  # Cache user data in session
+
+            },
+            auto_create_user => 1,
+            auto_update_user => 1,
+        },
     }
 );
 
