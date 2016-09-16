@@ -91,16 +91,9 @@ sub login :Path('/login') :Args(0) {
         })) {
         $c->log->debug("Authenticated!");
 
-        # Fetch information from the Auth Provider to get a unique id
-        # that we can use to link a local account to the account that
-        # was used at the Provider.
-
-        # FIXME: Get unique id
-
-        # At this point, there would be a call using the oauth token to fetch
-        # user data such as email address
+        # Redirect to a page that requires authentication - such as an account page
         $c->response->redirect($c->uri_for("/status"));
-        #$c->detach('/status');
+        $c->detach();
     } elsif (exists $c->req->params->{ code }) {
         # If the code parameter isn't present, we've not yet redirected to the
         # login server for authentication so a redirect is likely already present.
@@ -122,35 +115,37 @@ sub status :Path('/status') :Args(0) {
 
     # Fetch a 'protected' resource from the login server. Typically this
     # would be something like user data, profile info, etc.
-    my $req = HTTP::Request->new( GET => 'https://login.ext2.bocks.com/api/profile');
-    my $res = $c->user->oauth2->request( $req );
 
-    if ($res->is_success) {
-        $c->stash( response => $res->content );
-    } else {
-        # If the token no longer works and we get a 401, log them out locally
-        # as well so they get asked to re-authenticate.
-        if ($res->code == 401) {
-            $c->logout();
-            $c->detach('/status');
-        }
-        $c->stash( error => $res->content );
-    }
+## This is only possible for the first 20m (or whatever the expiry on the JWT from
+## the Auth Provider is) after logging in. Usually just grab the profile data and
+## access levels, and then ignore the token thereafter.
+
+#    my $req = HTTP::Request->new( GET => 'https://login.ext2.bocks.com/api/profile');
+#    my $res = $c->user->oauth2->request( $req );
+#
+#    if ($res->is_success) {
+#        $c->stash( response => $res->content );
+#    } else {
+#        # If the token no longer works and we get a 401, log them out locally
+#        # as well so they get asked to re-authenticate.
+#        if ($res->code == 401) {
+#            $c->logout();
+#            $c->detach('/status');
+#        }
+#        $c->stash( error => $res->content );
+#    }
     $c->stash( template => "status.html" );
 }
 
 sub logout :Path('/logout') :Args(0) {
     my ($self, $c) = @_;
 
-    if ($c->user_exists && $c->user->oauth2) {
-        my $res = $c->user->oauth2->request(
-            HTTP::Request->new( GET => 'https://login.ext2.bocks.com/api/revoke' )
-        );
-    }
-    # Not too concerned with the response, the token will die
-    # within the normal timeout anyway if there's an error.
+    my $uri = URI->new("https://login.ext2.bocks.com/logout");
+    $uri->query_form({
+        redirect_uri => $c->uri_for("/"),
+    });
     $c->logout();
-    $c->response->redirect($c->uri_for("/"));
+    $c->response->redirect( $uri->as_string );
 }
 
 sub end : ActionClass('RenderView') { }

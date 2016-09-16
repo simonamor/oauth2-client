@@ -21,8 +21,6 @@ sub load {
 
     $c->log->debug( "Doing stuff.. with " . Dumper($authinfo));
 
-    my $profile = undef;
-
     # Should have either { id => xxx } or { token => yyy } in $authinfo
 
     if ($authinfo->{ id }) {
@@ -35,10 +33,8 @@ sub load {
         my $res = $ua->request( $req );
         if ($res->is_success) {
             my $json = JSON->new();
-            $profile = $json->decode($res->content);
-            $authinfo = $profile;
-            $authinfo->{ id } = delete $authinfo->{ user_id };
-            #$authinfo = { id => $profile->{ user_id } };
+            my $profile = $json->decode($res->content);
+            $authinfo = { id => $profile->{ user_id } };
         } else {
             # No way to fetch anything since token is invalid.
             return undef;
